@@ -5,12 +5,7 @@ drives five relays, shows the time and each relay's state on a 0.96 inch
 OLED screen, and lets you switch the relays from a web page on your phone
 or computer over WiFi.
  
-Human presence detection was discussed but left out of this build by
-request. If you want it later, the cleanest option is a PIR sensor
-(HC-SR501) for simple motion detection, or an mmWave sensor (LD2410) if
-you also want a rough occupant count. Either would need its own free
-GPIO pin, and the project currently uses all the safe ones, so wiring
-would need to be revisited.
+
  
 ## Hardware
  

@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Room Control — Firmware Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f0f10;
+    --bg-raised:#17181a;
+    --card:#1b1c1e;
+    --card-border:#2a2b2e;
+    --text:#e6e6e6;
+    --text-dim:#93989e;
+    --acc:#03dac6;
+    --acc-dim:#0a3d38;
+    --acc2:#bb86fc;
+    --acc2-dim:#2c2140;
+    --err:#cf6679;
+    --err-dim:#3a1e24;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
+    --sans:'Inter', -apple-system, system-ui, sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  body{
+    margin:0;
+    background:var(--bg);
+    background-image:
+      linear-gradient(var(--card-border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--card-border) 1px, transparent 1px);
+    background-size:42px 42px;
+    background-attachment:fixed;
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.6;
+  }
+
+  a{ color:var(--acc); }
+
+  /* ---- top bar ---- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    gap:16px; flex-wrap:wrap;
+    padding:14px 28px;
+    background:rgba(15,15,16,0.85);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--card-border);
+  }
+  .brand{ font-family:var(--mono); font-weight:700; letter-spacing:0.5px; font-size:0.95rem; }
+  .brand span{ color:var(--acc); }
+  .topnav{ display:flex; gap:18px; flex-wrap:wrap; align-items:center; }
+  .topnav a{ color:var(--text-dim); text-decoration:none; font-size:0.85rem; font-family:var(--mono); transition:color .15s; }
+  .topnav a:hover{ color:var(--text); }
+  .printbtn{
+    font-family:var(--mono); font-size:0.8rem; font-weight:700;
+    background:var(--acc); color:#00201c; border:none; border-radius:7px;
+    padding:8px 14px; cursor:pointer; transition:transform .1s;
+  }
+  .printbtn:hover{ transform:translateY(-1px); }
+  .printbtn:active{ transform:scale(0.96); }
+
+  /* ---- layout ---- */
+  .wrap{ max-width:920px; margin:0 auto; padding:0 24px; }
+
+  .hero{ padding:64px 0 40px; }
+  .eyebrow{
+    font-family:var(--mono); font-size:0.78rem; letter-spacing:2px;
+    color:var(--acc); text-transform:uppercase; margin-bottom:14px;
+  }
+  h1{
+    font-size:2.6rem; margin:0 0 14px; line-height:1.1; letter-spacing:-0.5px;
+    background:linear-gradient(90deg, var(--text), var(--acc2) 120%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .tagline{ font-size:1.08rem; color:var(--text-dim); max-width:620px; margin:0 0 26px; }
+  .badges{ display:flex; gap:8px; flex-wrap:wrap; }
+  .badge{
+    font-family:var(--mono); font-size:0.72rem; padding:6px 11px; border-radius:20px;
+    border:1px solid var(--card-border); color:var(--text-dim); background:var(--bg-raised);
+  }
+
+  section{ padding:44px 0; border-top:1px solid var(--card-border); }
+  section:first-of-type{ border-top:none; }
+  .section-head{ display:flex; align-items:baseline; gap:12px; margin-bottom:22px; }
+  .section-num{ font-family:var(--mono); color:var(--acc2); font-size:0.85rem; }
+  h2{ font-size:1.5rem; margin:0; letter-spacing:-0.3px; }
+  h3{ font-size:1.05rem; margin:26px 0 10px; color:var(--acc); font-family:var(--mono); font-weight:600; }
+  p{ color:#cfcfcf; }
+  .lede{ color:var(--text-dim); }
+
+  .grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-top:8px; }
+  .card{
+    background:var(--card); border:1px solid var(--card-border); border-radius:12px;
+    padding:18px; border-top:3px solid var(--acc2);
+  }
+  .card h4{ margin:0 0 6px; font-size:0.98rem; }
+  .card p{ margin:0; font-size:0.88rem; color:var(--text-dim); }
+
+  table{ width:100%; border-collapse:collapse; margin:14px 0; font-size:0.88rem; }
+  th, td{ text-align:left; padding:10px 12px; border-bottom:1px solid var(--card-border); }
+  th{ font-family:var(--mono); font-weight:600; color:var(--acc); font-size:0.76rem; text-transform:uppercase; letter-spacing:0.5px; }
+  td code, p code{ font-family:var(--mono); background:var(--bg-raised); padding:2px 6px; border-radius:4px; font-size:0.85em; color:var(--acc); }
+  tr:last-child td{ border-bottom:none; }
+
+  .callout{
+    display:flex; gap:12px; padding:16px 18px; border-radius:10px; margin:18px 0;
+    border:1px solid var(--card-border); background:var(--bg-raised);
+  }
+  .callout .mark{ font-family:var(--mono); font-weight:700; flex-shrink:0; }
+  .callout.warn{ border-color:#4a3320; background:#231b12; }
+  .callout.warn .mark{ color:#e8b04b; }
+  .callout.note{ border-color:var(--acc-dim); background:#0f2523; }
+  .callout.note .mark{ color:var(--acc); }
+  .callout p{ margin:0; font-size:0.9rem; }
+
+  ol.steps{ padding-left:0; list-style:none; counter-reset:step; }
+  ol.steps li{
+    counter-increment:step; position:relative; padding:10px 0 10px 42px; font-size:0.94rem; color:#d5d5d5;
+    border-bottom:1px dashed var(--card-border);
+  }
+  ol.steps li:last-child{ border-bottom:none; }
+  ol.steps li::before{
+    content:counter(step); position:absolute; left:0; top:8px;
+    width:26px; height:26px; border-radius:7px; background:var(--acc2-dim); color:var(--acc2);
+    font-family:var(--mono); font-weight:700; font-size:0.78rem; display:flex; align-items:center; justify-content:center;
+  }
+
+  .limits{ list-style:none; padding:0; margin:14px 0; }
+  .limits li{ display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--card-border); font-size:0.9rem; color:#d5d5d5; }
+  .limits li:last-child{ border-bottom:none; }
+  .limits li::before{ content:"▲"; color:var(--err); font-size:0.65rem; margin-top:5px; }
+
+  pre{
+    background:#0a0a0b; border:1px solid var(--card-border); border-radius:10px;
+    padding:16px 18px; overflow-x:auto; font-family:var(--mono); font-size:0.82rem; color:#a8f5ea;
+  }
+  pre .k{ color:var(--acc2); }
+  pre .s{ color:#f4d07a; }
+
+  figure{ margin:20px 0; text-align:center; }
+  figcaption{ font-size:0.78rem; color:var(--text-dim); margin-top:10px; font-style:italic; }
+
+  footer{ padding:40px 0 60px; border-top:1px solid var(--card-border); color:var(--text-dim); font-size:0.85rem; }
+  footer a{ color:var(--text-dim); }
+
+  @media (max-width: 640px){
+    h1{ font-size:2rem; }
+    .topnav{ display:none; }
+  }
+
+  @media print{
+    body{ background:#fff !important; color:#111 !important; background-image:none; }
+    .topbar{ position:static; background:#fff; border-bottom:2px solid #000; backdrop-filter:none; }
+    .printbtn{ display:none; }
+    h1{ -webkit-text-fill-color:#111; background:none; color:#111; }
+    .eyebrow, h2, h3{ color:#111 !important; }
+    p, td, .card p, .limits li, .callout p{ color:#222 !important; }
+    .card, .callout, pre, table{ background:#f6f6f6 !important; border-color:#ccc !important; }
+    section{ break-inside:avoid; }
+    a{ color:#111; text-decoration:underline; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">ROOM_CONTROL<span>.docs</span></div>
+  <nav class="topnav">
+    <a href="#overview">Overview</a>
+    <a href="#hardware">Hardware</a>
+    <a href="#setup">Setup</a>
+    <a href="#usage">Usage</a>
+    <a href="#api">API</a>
+    <a href="#notes">Notes</a>
+  </nav>
+  <button class="printbtn" onclick="window.print()">↓ Save as PDF</button>
+</div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">ESP8266 · FIRMWARE DOCUMENTATION</div>
+    <h1>Room Control</h1>
+    <p class="tagline">A local, cloud-free web panel and OLED status display for four relay-switched loads, with built-in delay timers and no app to install.</p>
+    <div class="badges">
+      <span class="badge">NodeMCU 1.0 / ESP‑12F</span>
+      <span class="badge">SSD1306 128×64 OLED</span>
+      <span class="badge">4-Channel Relay</span>
+      <span class="badge">Local Web Server</span>
+      <span class="badge">EEPROM Persisted</span>
+    </div>
+  </div>
+
+  <section id="overview">
+    <div class="section-head"><span class="section-num">01</span><h2>Overview</h2></div>
+    <p>This firmware turns a NodeMCU into a self-contained switch box for four loads &mdash; named <code>Fan</code>, <code>Light</code>, <code>PC</code>, and <code>Night</code> by default, but that's just a label change away from anything else. It serves its own control panel over HTTP, so any phone or laptop on the same WiFi network can open the board's IP address and get a dark-themed page with a toggle and a delay-timer form for each channel.</p>
+    <p class="lede">There's no cloud dependency and no companion app &mdash; the whole interface is a single HTML page embedded in flash memory. An attached OLED mirrors the same state locally: clock, per-channel status, and a small WiFi indicator.</p>
+
+    <div class="grid">
+      <div class="card"><h4>4 Relay Channels</h4><p>Independently toggled, each with its own name and state, persisted across power loss.</p></div>
+      <div class="card"><h4>Delay Timers</h4><p>Schedule a channel to switch ON or OFF after N minutes &mdash; survives a closed browser tab.</p></div>
+      <div class="card"><h4>OLED Status</h4><p>Live clock, per-channel state, a 2×2 activity indicator, and a WiFi connection dot.</p></div>
+      <div class="card"><h4>Dual Time Sync</h4><p>NTP when available, with the browser pushing its own clock as a fallback every 5 minutes.</p></div>
+    </div>
+  </section>
+
+  <section id="hardware">
+    <div class="section-head"><span class="section-num">02</span><h2>Hardware &amp; Pinout</h2></div>
+    <p>Built against a NodeMCU 1.0 (ESP‑12F), an I2C SSD1306 OLED at address <code>0x3C</code>, and 4 relay modules. Pins are set with <code>#define</code>s at the top of the sketch if yours differ.</p>
+
+    <figure>
+      <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg" style="width:100%; max-width:620px; height:auto;">
+        <rect x="290" y="30" width="180" height="300" rx="10" fill="#1b1c1e" stroke="#bb86fc" stroke-width="1.5"/>
+        <rect x="345" y="10" width="70" height="24" rx="3" fill="#0f0f10" stroke="#93989e" stroke-width="1"/>
+        <text x="380" y="27" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#93989e">USB</text>
+
+        <!-- decorative generic pin ticks -->
+        <g stroke="#3a3b3e" stroke-width="2">
+          <line x1="280" y1="55" x2="290" y2="55"/><line x1="280" y1="80" x2="290" y2="80"/>
+          <line x1="280" y1="205" x2="290" y2="205"/><line x1="280" y1="230" x2="290" y2="230"/><line x1="280" y1="255" x2="290" y2="255"/><line x1="280" y1="280" x2="290" y2="280"/><line x1="280" y1="305" x2="290" y2="305"/>
+          <line x1="470" y1="55" x2="480" y2="55"/><line x1="470" y1="230" x2="480" y2="230"/><line x1="470" y1="255" x2="480" y2="255"/><line x1="470" y1="280" x2="480" y2="280"/><line x1="470" y1="305" x2="480" y2="305"/>
+        </g>
+
+        <!-- OLED pins: left side, purple -->
+        <g>
+          <line x1="230" y1="105" x2="290" y2="105" stroke="#bb86fc" stroke-width="2"/>
+          <circle cx="290" cy="105" r="4" fill="#bb86fc"/>
+          <text x="225" y="102" text-anchor="end" font-family="JetBrains Mono" font-size="12" fill="#bb86fc">D2</text>
+          <text x="225" y="116" text-anchor="end" font-family="Inter" font-size="10" fill="#93989e">OLED SDA</text>
+
+          <line x1="230" y1="140" x2="290" y2="140" stroke="#bb86fc" stroke-width="2"/>
+          <circle cx="290" cy="140" r="4" fill="#bb86fc"/>
+          <text x="225" y="137" text-anchor="end" font-family="JetBrains Mono" font-size="12" fill="#bb86fc">D1</text>
+          <text x="225" y="151" text-anchor="end" font-family="Inter" font-size="10" fill="#93989e">OLED SCL</text>
+        </g>
+
+        <!-- Relay 1 left, teal -->
+        <g>
+          <line x1="230" y1="175" x2="290" y2="175" stroke="#03dac6" stroke-width="2"/>
+          <circle cx="290" cy="175" r="4" fill="#03dac6"/>
+          <text x="225" y="172" text-anchor="end" font-family="JetBrains Mono" font-size="12" fill="#03dac6">D0</text>
+          <text x="225" y="186" text-anchor="end" font-family="Inter" font-size="10" fill="#93989e">Relay 1 · Fan</text>
+        </g>
+
+        <!-- Relays 2-4 right side, teal -->
+        <g>
+          <line x1="480" y1="105" x2="530" y2="105" stroke="#03dac6" stroke-width="2"/>
+          <circle cx="480" cy="105" r="4" fill="#03dac6"/>
+          <text x="535" y="102" font-family="JetBrains Mono" font-size="12" fill="#03dac6">D5</text>
+          <text x="535" y="116" font-family="Inter" font-size="10" fill="#93989e">Relay 2 · Light</text>
+
+          <line x1="480" y1="140" x2="530" y2="140" stroke="#03dac6" stroke-width="2"/>
+          <circle cx="480" cy="140" r="4" fill="#03dac6"/>
+          <text x="535" y="137" font-family="JetBrains Mono" font-size="12" fill="#03dac6">D6</text>
+          <text x="535" y="151" font-family="Inter" font-size="10" fill="#93989e">Relay 3 · PC</text>
+
+          <line x1="480" y1="175" x2="530" y2="175" stroke="#03dac6" stroke-width="2"/>
+          <circle cx="480" cy="175" r="4" fill="#03dac6"/>
+          <text x="535" y="172" font-family="JetBrains Mono" font-size="12" fill="#03dac6">D7</text>
+          <text x="535" y="186" font-family="Inter" font-size="10" fill="#93989e">Relay 4 · Night</text>
+        </g>
+
+        <text x="380" y="185" text-anchor="middle" font-family="JetBrains Mono" font-size="11" fill="#5a5b5e">ESP‑12F</text>
+      </svg>
+      <figcaption>Functional pin map, not a physical silkscreen &mdash; check your specific board for exact pin placement.</figcaption>
+    </figure>
+
+    <table>
+      <tr><th>Function</th><th>GPIO</th><th>NodeMCU Label</th></tr>
+      <tr><td>OLED SDA</td><td>GPIO4</td><td><code>D2</code></td></tr>
+      <tr><td>OLED SCL</td><td>GPIO5</td><td><code>D1</code></td></tr>
+      <tr><td>Relay 1 &mdash; Fan</td><td>GPIO16</td><td><code>D0</code></td></tr>
+      <tr><td>Relay 2 &mdash; Light</td><td>GPIO14</td><td><code>D5</code></td></tr>
+      <tr><td>Relay 3 &mdash; PC</td><td>GPIO12</td><td><code>D6</code></td></tr>
+      <tr><td>Relay 4 &mdash; Night</td><td>GPIO13</td><td><code>D7</code></td></tr>
+    </table>
+
+    <div class="callout warn">
+      <span class="mark">!</span>
+      <p>The relay boards this targets are active-LOW at the coil, but loads are wired through the <strong>NC</strong> contact rather than NO &mdash; so from the firmware's side, pin <strong>HIGH</strong> is what leaves the load powered (<code>LOAD_ON</code> is defined as <code>HIGH</code>). Using active-HIGH relays or NO wiring instead? Flip the <code>LOAD_ON</code>/<code>LOAD_OFF</code> defines, or every switch will act backwards.</p>
+    </div>
+  </section>
+
+  <section id="setup">
+    <div class="section-head"><span class="section-num">03</span><h2>Getting It Flashed</h2></div>
+    <ol class="steps">
+      <li>Add the ESP8266 board package in Arduino IDE &rarr; Boards Manager URL: <code>http://arduino.esp8266.com/stable/package_esp8266com_index.json</code></li>
+      <li>Install <strong>Adafruit GFX Library</strong> and <strong>Adafruit SSD1306</strong> via Library Manager. <code>EEPROM</code>, <code>Wire</code>, <code>ESP8266WiFi</code>, and <code>ESP8266WebServer</code> ship with the board package.</li>
+      <li>Board settings: <strong>NodeMCU 1.0 (ESP‑12E Module)</strong>, default flash size, 115200 upload speed.</li>
+      <li>Set your <code>ssid</code> and <code>password</code> near the top of the sketch, then upload.</li>
+      <li>Open Serial Monitor at 115200 baud on first boot to read the assigned IP address.</li>
+    </ol>
+    <div class="callout note">
+      <span class="mark">i</span>
+      <p>WiFi credentials are currently hardcoded in the sketch. Fine for a private repo &mdash; if this is going public, pull them into a small <code>secrets.h</code> that you <code>.gitignore</code> and <code>#include</code> instead.</p>
+    </div>
+  </section>
+
+  <section id="usage">
+    <div class="section-head"><span class="section-num">04</span><h2>Using It</h2></div>
+    <p>Open <code>http://&lt;board-ip&gt;/</code> from any device on the same network. Each channel is a card with a toggle switch and a timer form: enter minutes, choose ON or OFF, hit <strong>Set</strong>. The page polls the board once a second, shows a live countdown for any pending timer, and lets you cancel one with the red <strong>X</strong>.</p>
+    <p>The OLED mirrors the same state on the device itself: clock at the top, each channel's name and status below, an asterisk next to a channel with a timer pending, a filled/outline quadrant graphic for at-a-glance status, and a dot bottom-right &mdash; filled when WiFi is connected, hollow when it isn't.</p>
+  </section>
+
+  <section id="api">
+    <div class="section-head"><span class="section-num">05</span><h2>REST API</h2></div>
+    <p>The web page is just a client of this API &mdash; call it directly from a script, shortcut, or another automation tool.</p>
+    <table>
+      <tr><th>Endpoint</th><th>Params</th><th>Does</th></tr>
+      <tr><td><code>GET /</code></td><td>&mdash;</td><td>Serves the control panel page</td></tr>
+      <tr><td><code>GET /api/status</code></td><td>&mdash;</td><td>JSON: time + all 4 channel states / timers</td></tr>
+      <tr><td><code>GET /api/toggle</code></td><td><code>id</code> (0&ndash;3)</td><td>Flips that channel on/off</td></tr>
+      <tr><td><code>GET /api/timer</code></td><td><code>id</code>, <code>m</code>, <code>a</code></td><td>Schedules a delayed action</td></tr>
+      <tr><td><code>GET /api/timer</code></td><td><code>id</code>, <code>c=1</code></td><td>Cancels the pending timer</td></tr>
+      <tr><td><code>GET /api/settime</code></td><td><code>epoch</code></td><td>Pushes a Unix timestamp as a clock fallback</td></tr>
+    </table>
+
+    <h3>/api/status response</h3>
+    <pre>{
+  <span class="k">"time"</span>: <span class="s">"07:42:15 PM"</span>,
+  <span class="k">"relays"</span>: [
+    { <span class="k">"state"</span>: true, <span class="k">"name"</span>: <span class="s">"Fan"</span>, <span class="k">"t_active"</span>: true, <span class="k">"t_action"</span>: false, <span class="k">"t_rem"</span>: 812 }
+  ]
+}</pre>
+
+    <h3>Storage layout</h3>
+    <p>State lives in one <code>ConfigStore</code> struct in EEPROM: a magic number (<code>0xC0FFEE89</code>) to detect a blank chip, the current state of all 4 channels, and up to one pending timer per channel (target time, action, active flag). Every change is committed immediately.</p>
+  </section>
+
+  <section id="notes">
+    <div class="section-head"><span class="section-num">06</span><h2>Worth Knowing</h2></div>
+    <ul class="limits">
+      <li><strong>No authentication</strong> &mdash; anyone on the WiFi network can control the relays. Fine for a home LAN, don't expose this to the open internet as-is.</li>
+      <li><strong>One timer per channel</strong> &mdash; setting a new one overwrites whatever was pending.</li>
+      <li><strong>Missed timers catch up on reboot</strong> &mdash; if power was lost past a timer's target time, it fires as soon as the clock re-syncs, even if that's later than intended.</li>
+      <li><strong>Plain HTTP</strong>, no encryption.</li>
+    </ul>
+  </section>
+
+  <footer>
+    Generated documentation for the Room Control firmware. No license file is currently attached to this project &mdash; add an MIT <code>LICENSE</code> if you want it to be freely reusable.
+  </footer>
+
+</div>
+</body>
+</html>

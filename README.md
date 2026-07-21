@@ -1,95 +1,83 @@
-# ESP12F Relay and OLED Controller
+# Room Control — ESP8266 Relay & Timer Automation
  
-A small home automation controller built around a bare ESP12F module. It
-drives five relays, shows the time and each relay's state on a 0.96 inch
-OLED screen, and lets you switch the relays from a web page on your phone
-or computer over WiFi.
+A small home automation box built around a NodeMCU (ESP8266) that controls four relays — in my case a fan, a light, my PC, and a night lamp — from a phone or laptop on the same WiFi network. There's also a little OLED screen bolted to the enclosure so I can see what's on/off and what's about to fire without opening the app at all.
  
-
+No cloud account, no app store, no third-party server sitting in the middle. The board runs its own web server and serves a small dark-themed control panel straight from flash memory. Open the ESP8266's IP address in a browser, flip a switch, done.
  
+## What it does
+ 
+- **4 independently controlled relay channels**, each with a name you can see and toggle from the web UI (`Fan`, `Light`, `PC`, `Night` by default — change these to whatever you're actually switching).
+- **Delay timers per channel** — "turn this off in 45 minutes" style scheduling. One pending timer per channel at a time.
+- **Everything survives a power cut.** Relay states and any pending timers are written to EEPROM, so the board comes back the way you left it.
+- **A live OLED status screen** — clock, per-channel on/off state, a little 2×2 indicator block showing which channels are active at a glance, and a WiFi status dot.
+- **NTP time sync**, with a browser-pushed fallback. If the board can reach the internet it gets real time from NTP; either way, the web page also pushes the visiting browser's own clock to the board every few minutes, so timers stay accurate even if outbound NTP is blocked on your network.
+- **No app to install.** The whole UI is one embedded HTML page served directly from the firmware.
 ## Hardware
  
-- ESP12F module
-- 0.96 inch OLED display, SSD1306 driver, I2C interface
-- 5 channel relay module
-- 5V supply for the relay module, 3.3V supply for the ESP12F and OLED
-- Common ground between the ESP12F, the OLED, and the relay module
-See `docs/wiring_diagram.svg` for the connection overview.
+This was built for a NodeMCU 1.0 / ESP-12F, an SSD1306 128×64 I2C OLED, and 4 relay modules. Adjust pins in the `#define`s at the top of the sketch if your wiring is different.
  
-## Pin assignment
+| Function | GPIO | NodeMCU Label |
+|---|---|---|
+| OLED SDA | GPIO4 | D2 |
+| OLED SCL | GPIO5 | D1 |
+| Relay 1 — Fan | GPIO16 | D0 |
+| Relay 2 — Light | GPIO14 | D5 |
+| Relay 3 — PC | GPIO12 | D6 |
+| Relay 4 — Night | GPIO13 | D7 |
  
-| Signal        | ESP12F pin | Notes                                   |
-|---------------|------------|------------------------------------------|
-| OLED SDA      | D2         |                                            |
-| OLED SCL      | D1         |                                            |
-| Relay 1       | D5         |                                            |
-| Relay 2       | D6         |                                            |
-| Relay 3       | D7         |                                            |
-| Relay 4       | D0         | No interrupt support, fine as plain output |
-| Relay 5       | D3         | Boot strapping pin, must read high at boot |
+OLED I2C address is `0x3C`.
  
-D8 was left unused on purpose. It is a boot strapping pin (GPIO15) that
-needs to read low at boot, and most relay boards default to pulling their
-input high, which can prevent the board from starting. D4 was also left
-free as a spare pin.
+**A wiring detail that's easy to get backwards:** the relay boards this was built for are active-LOW at the coil, but the loads are wired through the **NC** (normally closed) contact rather than NO. That means, from the ESP8266's point of view, driving a pin **HIGH** actually leaves the relay de-energized and the load powered **through the NC contact** — so `HIGH` = load ON in this firmware (`LOAD_ON` is defined as `HIGH`). If you rewire to NO contacts, or use active-HIGH relay boards, flip the `LOAD_ON` / `LOAD_OFF` defines to match, or your switches will work backwards.
  
-## Libraries needed in the Arduino IDE
+## Getting it flashed
  
-Install these through the Library Manager before compiling:
+1. Install the ESP8266 board package in Arduino IDE (Boards Manager → add `http://arduino.esp8266.com/stable/package_esp8266com_index.json`, then install "esp8266").
+2. Install two libraries via the Library Manager: **Adafruit GFX Library** and **Adafruit SSD1306**. (`EEPROM`, `Wire`, `ESP8266WiFi`, and `ESP8266WebServer` come bundled with the board package.)
+3. Board settings: **NodeMCU 1.0 (ESP-12E Module)**, default flash size, 115200 upload speed.
+4. Open the sketch, update `ssid` and `password` near the top for your network, and flash it.
+5. Open Serial Monitor at 115200 baud on first boot — it prints the assigned IP address once WiFi connects. That's the address you'll open in a browser.
+> **Heads up on credentials:** right now the WiFi SSID and password are hardcoded directly in the sketch. That's fine for a private repo, but if this is going up somewhere public, either scrub them before committing or pull them out into a small `secrets.h` file that you `.gitignore`, and `#include` it instead.
  
-- ESP8266 board package (esp8266 by ESP8266 Community)
-- Adafruit GFX Library
-- Adafruit SSD1306
-- LittleFS (bundled with the ESP8266 core)
-## Project layout
+## Using it
  
+Open `http://<board-ip>/` on any device on the same network. Each channel gets a card with a toggle switch and a small timer form — punch in a number of minutes, pick ON or OFF, hit **Set**, and the board will flip that channel at the target time regardless of whether the browser tab is still open. The page polls the board every second for live state and shows a countdown for any pending timer; there's a red **X** button to cancel one early.
+ 
+The OLED on the device itself mirrors all of this: current time up top, each channel's name and state, an asterisk next to any channel with a timer pending, a filled/outline quadrant graphic for at-a-glance on/off status, and a small dot in the bottom right that's filled when connected to WiFi and hollow when it's not.
+ 
+## REST API
+ 
+The web page is just a client of this API — you can hit these directly too (e.g. from a shortcut, a script, or another home automation tool).
+ 
+| Endpoint | Params | What it does |
+|---|---|---|
+| `GET /` | — | Serves the control panel page |
+| `GET /api/status` | — | JSON with current time and, for each of the 4 channels: state, name, and pending-timer info |
+| `GET /api/toggle` | `id` (0–3) | Flips that channel on/off |
+| `GET /api/timer` | `id`, `m` (minutes), `a` (`1`=ON, `0`=OFF) | Schedules a delayed action on that channel |
+| `GET /api/timer` | `id`, `c=1` | Cancels the pending timer on that channel |
+| `GET /api/settime` | `epoch` | Pushes a Unix timestamp to the board — used by the web page as a clock fallback |
+ 
+`/api/status` looks roughly like this:
+ 
+```json
+{
+  "time": "07:42:15 PM",
+  "relays": [
+    { "state": true, "name": "Fan", "t_active": true, "t_action": false, "t_rem": 812 }
+  ]
+}
 ```
-esp12f-relay-oled/
-  firmware/
-    firmware.ino    Main sketch: WiFi, NTP time, relay control, OLED, web server
-    config.h        WiFi credentials, pin numbers, relay logic, time zone
-  data/
-    index.html      Web control page, uploaded to the ESP12F's LittleFS storage
-  docs/
-    wiring_diagram.svg
-  README.md
-```
  
-Code and documentation are kept apart on purpose: `firmware.ino` and
-`config.h` are the only files you need to open in the Arduino IDE, and
-`index.html` never needs to be touched by the compiler.
+## How state is stored
  
-## Setup
+Everything lives in one `ConfigStore` struct written to EEPROM: a magic number (`0xC0FFEE89`) used to tell "real saved data" apart from a blank/uninitialized chip, the current on/off state of all 4 channels, and up to one pending timer per channel (target Unix time, the action to take, and whether it's active). Any change — a manual toggle, a new timer, a timer firing — gets committed to EEPROM immediately.
  
-1. Open `firmware/firmware.ino` in the Arduino IDE. Make sure
-   `firmware/config.h` sits in the same folder, since the sketch
-   includes it directly.
-2. Select an ESP8266 board profile that matches your ESP12F breakout
-   (a "Generic ESP8266 Module" profile works for most bare modules).
-3. Install the ESP8266 LittleFS upload tool for the Arduino IDE if you
-   have not already, then use it to upload the `data` folder. This
-   copies `index.html` onto the module's flash storage, so the web page
-   can be served without also being baked into the sketch.
-4. Wire the OLED and relays as listed in the pin table above.
-5. Upload `firmware.ino` to the ESP12F.
-6. Open the Serial Monitor at 115200 baud to see the WiFi connection
-   progress and the IP address the module receives.
-7. Visit that IP address in a browser on the same network to reach the
-   relay control page.
-The WiFi network name and password are already set in `config.h` to
-match the network named "Ee". If you move the module to a different
-network later, that is the only file you need to edit.
+## Things worth knowing before you rely on this
  
-## How it behaves
+- **No login, no auth.** Anyone on your WiFi can hit the API and flip your relays. Fine for a home LAN; don't port-forward this to the open internet without putting something in front of it.
+- **One timer per channel.** Setting a new timer on a channel overwrites whatever was pending on it.
+- **Timers survive a reboot, but "catch up" on reconnect.** If the board loses power and misses a timer's target time entirely, it'll fire that action as soon as its clock re-syncs after boot, even if that's later than intended.
+- **Plain HTTP**, no encryption.
+## License
  
-- On startup, the OLED shows a connecting message, then the IP address
-  it was given, then switches to the normal display: date and time on
-  the top line, followed by each relay's name and ON/OFF state.
-- The time is fetched once at startup from an NTP server and kept
-  running from the module's internal clock afterward, set to Indian
-  Standard Time.
-- The web page shows a toggle switch for each relay and a live clock,
-  both of which refresh once a second.
-- Relay wiring assumes an active low relay board, meaning a low signal
-  turns the relay on. If your board behaves the opposite way, change
-  `RELAY_ACTIVE_LOW` to `false` in `config.h`.
+No license file is attached yet, which technically means default copyright applies and others can't reuse the code without asking. If you'd like this to be freely usable/forkable, add an MIT `LICENSE` file — GitHub can generate one for you right from the "Add file" menu when creating or editing the repo.

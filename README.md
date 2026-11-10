@@ -85,6 +85,26 @@ No license file is attached yet, which technically means default copyright appli
 
 ---
 
+## Skills & technologies
+
+`Arduino/C++` · `HTML/CSS`
+
+
+## Repository structure
+
+Key files and folders (not exhaustive):
+
+- `README.md`
+- `Room_Control_Beginner_Build_Guide.docx`
+- `index.html`
+- `smart-switchboard-with-watch-function.ino`
+
+
+## How it works
+
+The main firmware sketch is `smart-switchboard-with-watch-function.ino`. Open it in Arduino IDE, verify the board, pin mapping and library requirements, then compile and upload. Test hardware behaviour on the real circuit before relying on it.
+
+
 ## Maintenance & Audit
 
 - **Audit date:** 10 November 2026

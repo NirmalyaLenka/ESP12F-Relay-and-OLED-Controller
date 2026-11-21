@@ -29,6 +29,17 @@ OLED I2C address is `0x3C`.
  
 **A wiring detail that's easy to get backwards:** the relay boards this was built for are active-LOW at the coil, but the loads are wired through the **NC** (normally closed) contact rather than NO. That means, from the ESP8266's point of view, driving a pin **HIGH** actually leaves the relay de-energized and the load powered **through the NC contact** — so `HIGH` = load ON in this firmware (`LOAD_ON` is defined as `HIGH`). If you rewire to NO contacts, or use active-HIGH relay boards, flip the `LOAD_ON` / `LOAD_OFF` defines to match, or your switches will work backwards.
  
+## Safe first-run checklist
+
+This firmware controls physical relay outputs and exposes unauthenticated HTTP endpoints. Treat the first power-up as a hardware test, not as a ready-to-use mains controller.
+
+1. **Configure Wi-Fi first.** Set the `ssid` and `password` constants in the sketch for a protected network. The checked-in password string is empty; do not deploy it unchanged on an open or untrusted network.
+2. **Disconnect the loads during initial tests.** Upload with the relay contacts disconnected from appliances. Confirm the board boots, the OLED works, and the intended channel mapping is correct before attaching any load.
+3. **Verify relay logic and contacts.** This firmware assumes active-LOW relay modules with loads wired through NC contacts. In this configuration, firmware state ON drives the pin HIGH and powers the load through NC. A different relay board or NO wiring changes that relationship. Do not rely on labels alone; verify the actual module and contact wiring with power disconnected.
+4. **Account for saved state.** Relay states are restored from EEPROM after a valid stored configuration is found. A previously saved ON state can therefore energize a connected load at boot.
+5. **Keep mains work safe.** Never place mains wiring on a breadboard or alongside exposed low-voltage logic. Use properly rated enclosures, protection, clearances, strain relief, and wiring practices. If you are not qualified to wire mains loads safely, test only with low-voltage loads and get competent help for mains installation.
+6. **Keep it on a trusted LAN.** There is no login, no encryption, and no authorization on the relay API. Do not port-forward the device or expose it directly to the internet.
+
 ## Getting it flashed
  
 1. Install the ESP8266 board package in Arduino IDE (Boards Manager → add `http://arduino.esp8266.com/stable/package_esp8266com_index.json`, then install "esp8266").
@@ -36,7 +47,7 @@ OLED I2C address is `0x3C`.
 3. Board settings: **NodeMCU 1.0 (ESP-12E Module)**, default flash size, 115200 upload speed.
 4. Open the sketch, update `ssid` and `password` near the top for your network, and flash it.
 5. Open Serial Monitor at 115200 baud on first boot — it prints the assigned IP address once WiFi connects. That's the address you'll open in a browser.
-> **Heads up on credentials:** right now the WiFi SSID and password are hardcoded directly in the sketch. That's fine for a private repo, but if this is going up somewhere public, either scrub them before committing or pull them out into a small `secrets.h` file that you `.gitignore`, and `#include` it instead.
+> **Wi-Fi credentials:** the SSID and password are hardcoded in the sketch, and the checked-in password string is empty. Replace both with the correct credentials for a protected network before upload. Do not commit real credentials to a public repository; if you move them to a local `secrets.h`, add that file to `.gitignore` and include a placeholder example instead.
  
 ## Using it
  
@@ -99,6 +110,7 @@ Key files and folders (not exhaustive):
 - `index.html`
 - `smart-switchboard-with-watch-function.ino`
 
+`smart-switchboard-with-watch-function.ino` is the firmware and embeds the served control page in its `INDEX_HTML` string. The separate root-level `index.html` is a standalone documentation/build-guide page; changing it alone does **not** change the page served by the ESP8266. The DOCX file is an additional repository artifact; its contents were not independently reviewed in this pass.
 
 ## How it works
 
